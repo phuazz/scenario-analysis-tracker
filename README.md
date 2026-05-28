@@ -23,12 +23,12 @@ acting authority.
 signal-tracker/
 ├── signals/                  # markdown source files (one per signal)
 ├── data/
-│   ├── prices.json           # daily closes per ticker (Stooq)
+│   ├── prices.json           # daily closes per ticker (Yahoo Finance)
 │   ├── signals.json          # parsed signals (from parse_signals.py)
 │   └── signals_compiled.json # parsed + actuals (from build.py)
 ├── scripts/
 │   ├── parse_signals.py      # markdown → signals.json
-│   ├── fetch_prices.py       # Stooq → prices.json
+│   ├── fetch_prices.py       # Yahoo Finance → prices.json
 │   └── build.py              # combine → signals_compiled.json + docs/index.html
 ├── template.html             # dashboard source (~14KB)
 └── docs/index.html           # built dashboard (GitHub Pages)
@@ -106,8 +106,10 @@ for the top-level expected-vs-actual comparison. All seven horizons (1M, 2M,
 
 ## Notes for operations
 
-- Ticker mapping in `fetch_prices.py` (`STOOQ_MAP`) needs extension as new
-  assets are added. Verify Stooq symbols before relying on data.
+- Ticker mapping in `fetch_prices.py` (`YF_MAP`) needs extension as new
+  assets are added. Verify Yahoo Finance symbols before relying on data. The
+  prototype originally used Stooq, but Stooq now requires a per-user API key
+  behind a browser captcha so the project switched to yfinance.
 - Date arithmetic uses `python-dateutil` `relativedelta` to handle month and
   year boundaries cleanly — never compute month offsets manually.
 - The dashboard template stays under 200KB so the file-size editing guardrails

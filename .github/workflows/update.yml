@@ -1,0 +1,56 @@
+name: Update dashboard
+
+on:
+  # Daily at 22:00 UTC (06:00 SGT next day)
+  schedule:
+    - cron: "0 22 * * *"
+
+  # Rebuild on every push to main so changes to signals/, scripts/, or
+  # template.html roll out to GitHub Pages immediately.
+  push:
+    branches: [main]
+
+  # Allow manual triggering from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install pyyaml python-dateutil yfinance
+
+      - name: Parse signal markdown files
+        run: python scripts/parse_signals.py
+
+      - name: Fetch prices from Yahoo Finance
+        run: python scripts/fetch_prices.py
+
+      - name: Build dashboard
+        run: python scripts/build.py
+
+      - name: Commit updated docs and prices
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: refresh dashboard and price cache"
+          # Force-add prices.json: it is gitignored locally to keep dev clones
+          # clean, but the workflow is the canonical source of the price cache
+          # and must persist it back to the repo.
+          add_options: "-f"
+          file_pattern: "docs/index.html data/prices.json"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
+          commit_author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          # The action skips the commit automatically when no files have changed.
