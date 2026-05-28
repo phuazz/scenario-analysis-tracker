@@ -13,10 +13,12 @@ env/
 Thumbs.db
 desktop.ini
 
-# Generated data (rebuilt by the pipeline / GitHub Action)
+# Derived data — pure rebuilds from signals/*.md + prices.json
 data/signals.json
 data/signals_compiled.json
-data/prices.json
+
+# Note: data/prices.json is NOT ignored. It is the persistent price cache
+# accumulated by the GitHub Action and committed back to main on every run.
 
 # Editor / IDE
 .vscode/

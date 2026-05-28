@@ -45,10 +45,6 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: refresh dashboard and price cache"
-          # Force-add prices.json: it is gitignored locally to keep dev clones
-          # clean, but the workflow is the canonical source of the price cache
-          # and must persist it back to the repo.
-          add_options: "-f"
           file_pattern: "docs/index.html data/prices.json"
           commit_user_name: "github-actions[bot]"
           commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
