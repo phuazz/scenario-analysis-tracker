@@ -1,8 +1,11 @@
 # Signal Tracker
 
+**Live dashboard: https://phuazz.github.io/scenario-analysis-tracker/**
+
 A personal database of scenario-analysis events — third-party research signals
 and internal dashboard triggers — with credibility gating and actual-vs-expected
-monitoring over time.
+monitoring over time. The dashboard is rebuilt daily by GitHub Actions at
+22:00 UTC (06:00 SGT) and on every push to `main`.
 
 ## Why this exists
 
