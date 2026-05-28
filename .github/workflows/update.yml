@@ -30,7 +30,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install pyyaml python-dateutil yfinance
+        run: pip install -r requirements.txt
 
       - name: Parse signal markdown files
         run: python scripts/parse_signals.py
