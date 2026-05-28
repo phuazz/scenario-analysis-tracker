@@ -82,6 +82,9 @@ tr.signal-row:hover { background: #f8f9fb; }
 .fr-table th:first-child, .fr-table td:first-child { text-align: left; }
 .row-elapsed { background: #f8f9fb; }
 .row-pending td { color: #999; }
+.col-published { color: #1e40af; font-style: italic; }
+.col-published-header { color: #1e40af; }
+.divergence-note { font-size: 11px; color: #666; margin-top: 6px; font-style: italic; }
 
 .notes-md { background: #fafafa; padding: 16px; border-radius: 6px;
   border: 1px solid #eee; margin-top: 8px; font-size: 13px; line-height: 1.6;
@@ -237,6 +240,8 @@ function renderDrawer(sig) {
   const act = sig.actuals || {};
   const evl = sig.evaluation || {};
 
+  const rr = sig.realised_returns || {};
+  const hasPublished = Object.keys(rr).length > 0;
   const frRows = HORIZONS.map(h => {
     const r = fr[h] || {};
     const a = act[h] || {};
@@ -245,6 +250,7 @@ function renderDrawer(sig) {
     const actualVal = elapsed ? e.actual_pct : a.current_return_pct;
     const vsMean = elapsed && e.vs_mean !== undefined ? e.vs_mean : null;
     const cls = elapsed ? 'row-elapsed' : 'row-pending';
+    const publishedVal = rr[h];
     let flag = '';
     if (e.exceeded_max_gain) flag = ' 🟢';
     else if (e.breached_max_loss) flag = ' 🔴';
@@ -255,10 +261,24 @@ function renderDrawer(sig) {
       <td>${r.pct_pos ?? '—'}%</td>
       <td>${fmtPct(r.max_loss, false)}</td>
       <td>${fmtPct(r.max_gain)}</td>
+      <td class="col-published">${publishedVal !== undefined && publishedVal !== null ? fmtPct(publishedVal) : '<span class="num-mute">—</span>'}</td>
       <td>${actualVal !== null && actualVal !== undefined ? fmtPct(actualVal) : '<span class="num-mute">—</span>'}</td>
       <td>${vsMean !== null ? fmtPct(vsMean) : '<span class="num-mute">—</span>'}</td>
     </tr>`;
   }).join('');
+
+  // Footnote: surface the published-vs-computed gap at the preferred horizon
+  // when both numbers exist. This makes provider/data-source divergences visible.
+  let divergenceNote = '';
+  if (hasPublished) {
+    const ph = sig.preferred_horizon;
+    const pub = rr[ph];
+    const e = evl[ph] || {};
+    if (pub !== undefined && pub !== null && e.actual_pct !== undefined && e.actual_pct !== null) {
+      const gap = (e.actual_pct - pub).toFixed(2);
+      divergenceNote = `<div class="divergence-note">At ${ph}: provider published ${pub.toFixed(1)}% vs computed ${e.actual_pct.toFixed(2)}% (gap ${gap > 0 ? '+' : ''}${gap} pt). Gap reflects index price-return vs the provider's underlying series (e.g. total return, currency adjustment, or different rebalancing).</div>`;
+    }
+  }
 
   const cs = sig.credibility_score || {};
   const csRows = [
@@ -289,10 +309,12 @@ function renderDrawer(sig) {
       <thead><tr>
         <th>Horizon</th><th>Mean</th><th>Median</th><th>%↑</th>
         <th>Avg Max Loss</th><th>Avg Max Gain</th>
+        <th class="col-published-header">Published</th>
         <th>Actual / MTM</th><th>vs Mean</th>
       </tr></thead>
       <tbody>${frRows}</tbody>
     </table>
+    ${divergenceNote}
 
     <h3>Credibility Gate Breakdown</h3>
     <table class="fr-table"><tbody>${csRows}
