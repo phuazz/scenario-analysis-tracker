@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal Tracker</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #fafafa;
+  color: #1a1a1a;
+  line-height: 1.5;
+  font-size: 14px;
+}
+.container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+header { margin-bottom: 24px; border-bottom: 1px solid #e5e5e5; padding-bottom: 16px; }
+h1 { font-size: 22px; font-weight: 600; color: #111; }
+.subtitle { color: #666; font-size: 13px; margin-top: 4px; }
+.meta-row { display: flex; gap: 24px; margin-top: 12px; font-size: 12px; color: #555; }
+.meta-row span { display: inline-flex; align-items: center; gap: 6px; }
+
+.tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid #e5e5e5; }
+.tab {
+  padding: 10px 18px; cursor: pointer; border-bottom: 2px solid transparent;
+  font-size: 13px; color: #666; user-select: none;
+}
+.tab.active { color: #111; border-bottom-color: #2563eb; font-weight: 500; }
+.tab:hover:not(.active) { color: #333; }
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+table { width: 100%; border-collapse: collapse; background: white;
+  border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden; }
+th { background: #f5f5f5; padding: 10px 12px; text-align: left;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: #555; font-weight: 600; border-bottom: 1px solid #e5e5e5; }
+td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px;
+  vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr.signal-row { cursor: pointer; transition: background 0.1s; }
+tr.signal-row:hover { background: #f8f9fb; }
+
+.gate-pill { display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 600; }
+.gate-act { background: #d1fae5; color: #065f46; }
+.gate-monitor { background: #fef3c7; color: #92400e; }
+.gate-ignore { background: #fee2e2; color: #991b1b; }
+
+.status-pill { display: inline-block; padding: 2px 6px; border-radius: 3px;
+  font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+.status-active { background: #dbeafe; color: #1e40af; }
+.status-matured { background: #e5e7eb; color: #374151; }
+.status-killed { background: #fce7f3; color: #9d174d; }
+
+.num-pos { color: #047857; font-weight: 500; }
+.num-neg { color: #b91c1c; font-weight: 500; }
+.num-mute { color: #888; }
+
+.drawer-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+  display: none; z-index: 10;
+}
+.drawer-overlay.open { display: block; }
+.drawer {
+  position: fixed; right: 0; top: 0; bottom: 0; width: 720px; max-width: 95vw;
+  background: white; box-shadow: -4px 0 24px rgba(0,0,0,0.1);
+  overflow-y: auto; padding: 24px; z-index: 11;
+  transform: translateX(100%); transition: transform 0.2s ease;
+}
+.drawer.open { transform: translateX(0); }
+.drawer-close { float: right; cursor: pointer; font-size: 20px; color: #666;
+  background: none; border: none; padding: 4px 8px; }
+.drawer h2 { font-size: 18px; margin-bottom: 4px; }
+.drawer .source { color: #666; font-size: 12px; margin-bottom: 16px; }
+.drawer h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: #555; margin: 20px 0 8px; font-weight: 600; }
+
+.fr-table { font-size: 12px; margin-top: 8px; }
+.fr-table th, .fr-table td { padding: 6px 8px; text-align: right; }
+.fr-table th:first-child, .fr-table td:first-child { text-align: left; }
+.row-elapsed { background: #f8f9fb; }
+.row-pending td { color: #999; }
+
+.notes-md { background: #fafafa; padding: 16px; border-radius: 6px;
+  border: 1px solid #eee; margin-top: 8px; font-size: 13px; line-height: 1.6;
+  white-space: pre-wrap; font-family: inherit; }
+
+.empty-state { padding: 60px 20px; text-align: center; color: #888;
+  background: white; border: 1px dashed #ddd; border-radius: 6px; }
+
+.summary-cards { display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 12px; margin-bottom: 20px; }
+.card { background: white; border: 1px solid #e5e5e5; border-radius: 6px;
+  padding: 16px; }
+.card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: #666; margin-bottom: 6px; }
+.card-value { font-size: 22px; font-weight: 600; color: #111; }
+.card-sub { font-size: 11px; color: #888; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Signal Tracker</h1>
+    <div class="subtitle">Scenario-analysis events with credibility gating and actual-vs-expected monitoring</div>
+    <div class="meta-row" id="meta-row"></div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-panel="active">Active Signals</div>
+    <div class="tab" data-panel="matured">Matured (Track Record)</div>
+    <div class="tab" data-panel="all">All Signals</div>
+  </div>
+
+  <div class="summary-cards" id="summary-cards"></div>
+
+  <div class="panel active" id="panel-active"></div>
+  <div class="panel" id="panel-matured"></div>
+  <div class="panel" id="panel-all"></div>
+</div>
+
+<div class="drawer-overlay" id="drawer-overlay"></div>
+<aside class="drawer" id="drawer"></aside>
+
+<script>
+// Injected by build.py
+const SIGNALS = [{"id": "2025-04-15_sentimentrader_euro-breadth-thrust", "signal_date": "2025-04-15", "source": "SentimenTrader", "signal_name": "European 10-day breadth thrust (<25 to >75 in 21D)", "asset": {"ticker": "STOXX", "name": "STOXX Europe 600 Price Index (EUR)", "wrapper_ticker": "EZU", "price_at_signal": 519.2}, "preferred_horizon": "4M", "sample_size": 144, "lookback_start": "2003-02-18", "forward_returns": {"1M": {"mean": 0.6, "median": 1.7, "pct_pos": 62, "max_loss": -3.2, "max_gain": 3.0, "t_stat": 2.8}, "2M": {"mean": 0.7, "median": 1.8, "pct_pos": 59, "max_loss": -4.8, "max_gain": 4.5, "t_stat": 1.7}, "3M": {"mean": 0.9, "median": 1.9, "pct_pos": 65, "max_loss": -6.0, "max_gain": 5.7, "t_stat": 1.3}, "4M": {"mean": 2.1, "median": 3.8, "pct_pos": 66, "max_loss": -6.7, "max_gain": 6.8, "t_stat": 2.2}, "5M": {"mean": 2.6, "median": 4.5, "pct_pos": 69, "max_loss": -7.5, "max_gain": 7.8, "t_stat": 2.1}, "6M": {"mean": 3.3, "median": 4.9, "pct_pos": 68, "max_loss": -8.0, "max_gain": 8.8, "t_stat": 1.7}, "1Y": {"mean": 6.2, "median": 10.0, "pct_pos": 70, "max_loss": -11.0, "max_gain": 14.2, "t_stat": 2.6}}, "tail_count_10pct": {"1M": {"neg": 11, "pos": 1}, "3M": {"neg": 29, "pos": 19}, "6M": {"neg": 43, "pos": 53}, "1Y": {"neg": 56, "pos": 95}}, "context": {"dist_from_60d_high_pct": -8.5, "trailing_60d_return_pct": -4.2, "vol_regime": "elevated", "entry_point_descriptor": "post-drawdown thrust"}, "credibility_score": {"sample_size": 2, "t_stat": 1, "tail_asymmetry": 1, "entry_point": 2, "recent_performance": 1, "total": 7, "action": "act"}, "status": "matured", "realised_returns": {"1M": 8.1, "2M": 7.6, "3M": 7.3, "4M": 8.4, "5M": 9.3, "6M": 11.0, "1Y": 20.8}, "notes_markdown": "# Notes\n\nHistorical example: April 2025 signal that scored well on the credibility gate\nbecause it fired post-drawdown (STOXX 600 down ~8.5 percent from 60D high,\ntrailing 60D return negative) rather than post-rally. Forward returns came in\nmaterially above mean at every horizon \u2014 a textbook case of the conditional\nentry-point context flagging where the signal is most productive.\n\nCompare directly with the 2026-05-22 instance, which scored 4/10 because it\nfired near recent highs with positive trailing returns. The credibility gate\ndiscriminates between the two even though the underlying signal mechanics are\nidentical.\n\nThis is the use case for the tracker: same signal, different context, very\ndifferent expected outcome.", "source_filename": "2025-04-15_sentimentrader_euro-breadth-thrust.md", "actuals": {"1M": {"horizon_date": "2025-05-15", "elapsed": true, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}, "2M": {"horizon_date": "2025-06-15", "elapsed": true, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}, "3M": {"horizon_date": "2025-07-15", "elapsed": true, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}, "4M": {"horizon_date": "2025-08-15", "elapsed": true, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}, "5M": {"horizon_date": "2025-09-15", "elapsed": true, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}, "6M": {"horizon_date": "2025-10-15", "elapsed": true, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}, "1Y": {"horizon_date": "2026-04-15", "elapsed": true, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}}, "evaluation": {"1M": {"status": "pending"}, "2M": {"status": "pending"}, "3M": {"status": "pending"}, "4M": {"status": "pending"}, "5M": {"status": "pending"}, "6M": {"status": "pending"}, "1Y": {"status": "pending"}}, "computed_at": "2026-05-28"}, {"id": "2026-05-22_sentimentrader_euro-breadth-thrust", "signal_date": "2026-05-22", "source": "SentimenTrader", "signal_name": "European 10-day breadth thrust (<25 to >75 in 21D)", "asset": {"ticker": "STOXX", "name": "STOXX Europe 600 Price Index (EUR)", "wrapper_ticker": "EZU", "wrapper_note": "iShares MSCI Eurozone ETF as deployable proxy", "price_at_signal": 628.01}, "preferred_horizon": "4M", "sample_size": 145, "lookback_start": "2003-02-18", "forward_returns": {"1M": {"mean": 0.6, "median": 1.7, "pct_pos": 62, "max_loss": -3.2, "max_gain": 3.0, "t_stat": 2.8}, "2M": {"mean": 0.7, "median": 1.8, "pct_pos": 59, "max_loss": -4.8, "max_gain": 4.5, "t_stat": 1.7}, "3M": {"mean": 0.9, "median": 1.9, "pct_pos": 65, "max_loss": -6.0, "max_gain": 5.7, "t_stat": 1.3}, "4M": {"mean": 2.1, "median": 3.8, "pct_pos": 66, "max_loss": -6.7, "max_gain": 6.8, "t_stat": 2.2}, "5M": {"mean": 2.6, "median": 4.5, "pct_pos": 69, "max_loss": -7.5, "max_gain": 7.8, "t_stat": 2.1}, "6M": {"mean": 3.3, "median": 4.9, "pct_pos": 68, "max_loss": -8.0, "max_gain": 8.8, "t_stat": 1.7}, "1Y": {"mean": 6.2, "median": 10.0, "pct_pos": 70, "max_loss": -11.0, "max_gain": 14.2, "t_stat": 2.6}}, "tail_count_10pct": {"1M": {"neg": 11, "pos": 1}, "2M": {"neg": 20, "pos": 10}, "3M": {"neg": 29, "pos": 19}, "4M": {"neg": 35, "pos": 30}, "5M": {"neg": 42, "pos": 42}, "6M": {"neg": 43, "pos": 53}, "1Y": {"neg": 56, "pos": 95}}, "context": {"dist_from_60d_high_pct": -1.1, "trailing_60d_return_pct": 8.4, "vol_regime": "normal", "entry_point_descriptor": "post-rally near highs"}, "credibility_score": {"sample_size": 2, "t_stat": 1, "tail_asymmetry": 0, "entry_point": 0, "recent_performance": 1, "total": 4, "action": "ignore"}, "status": "active", "notes_markdown": "# Notes\n\nShort-term breadth aggregate across FTSE / CAC / DAX / SMI surged from below\n25 percent to above 75 percent within 21 days. Aggregate metric sits at 76.5\nand continues to trend higher at signal time.\n\nAuthor flags 1 to 3 month win rates as \"passable\" (62 to 65 percent positive)\nbut acknowledges average returns fail to compound meaningfully and tail\nasymmetry is materially unfavourable in the near term (11:1 against at 1M,\n1.5:1 against at 3M).\n\nWhere the signal pays off: 4M to 1Y, where median returns climb to 3.8 to 10.0\npercent and tail asymmetry flips favourable from 5M onward.\n\n## Credibility gate\n\n| Input | Score | Rationale |\n|---|---|---|\n| Sample size | 2 | 145 signals over 23 years |\n| T-stat at 4M | 1 | 2.2 \u2014 meaningful but not exceptional |\n| Tail asymmetry at 4M | 0 | 35 negative vs 30 positive \u2014 slightly unfavourable |\n| Entry-point fit | 0 | Signal fires post-rally, STOXX 600 near recent highs |\n| Recent performance (last 5) | 1 | 2024-07-11 negative, 2024-08-14 positive, 2024-10-18 negative, 2025-01-16 mixed, 2025-04-15 strong |\n| **Total** | **4** | Below action threshold of 7 |\n\n## Decision\n\nLog and monitor only. Do not deploy fresh capital. Watch for next thrust event\nthat fires from a drawdown of greater than 7 percent from 60-day high \u2014 that\nis the historically productive subset that this conditional context check\nwould flag.", "source_filename": "2026-05-22_sentimentrader_euro-breadth-thrust.md", "actuals": {"1M": {"horizon_date": "2026-06-22", "elapsed": false, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}, "2M": {"horizon_date": "2026-07-22", "elapsed": false, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}, "3M": {"horizon_date": "2026-08-22", "elapsed": false, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}, "4M": {"horizon_date": "2026-09-22", "elapsed": false, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}, "5M": {"horizon_date": "2026-10-22", "elapsed": false, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}, "6M": {"horizon_date": "2026-11-22", "elapsed": false, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}, "1Y": {"horizon_date": "2027-05-22", "elapsed": false, "actual_return_pct": null, "price_at_horizon": null, "current_return_pct": null}}, "evaluation": {"1M": {"status": "pending"}, "2M": {"status": "pending"}, "3M": {"status": "pending"}, "4M": {"status": "pending"}, "5M": {"status": "pending"}, "6M": {"status": "pending"}, "1Y": {"status": "pending"}}, "computed_at": "2026-05-28"}];
+
+// Standalone-dev fallback: if no signals injected, try fetch
+async function loadSignals() {
+  if (SIGNALS && SIGNALS.length > 0) return SIGNALS;
+  try {
+    const r = await fetch('data/signals_compiled.json');
+    if (r.ok) return await r.json();
+  } catch (e) { /* ignore */ }
+  return [];
+}
+
+const HORIZONS = ['1M','2M','3M','4M','5M','6M','1Y'];
+
+function fmtPct(v, signed=true) {
+  if (v === null || v === undefined) return '<span class="num-mute">—</span>';
+  const cls = v > 0 ? 'num-pos' : v < 0 ? 'num-neg' : 'num-mute';
+  const sign = (signed && v > 0) ? '+' : '';
+  return `<span class="${cls}">${sign}${v.toFixed(1)}%</span>`;
+}
+
+function gatePill(score) {
+  if (!score) return '';
+  const action = score.action || 'monitor';
+  const cls = action === 'act' ? 'gate-act'
+    : action === 'ignore' ? 'gate-ignore' : 'gate-monitor';
+  return `<span class="gate-pill ${cls}">${action.toUpperCase()} ${score.total ?? ''}/10</span>`;
+}
+
+function statusPill(status) {
+  const cls = `status-${status || 'active'}`;
+  return `<span class="status-pill ${cls}">${status || 'active'}</span>`;
+}
+
+function daysElapsed(signalDate) {
+  const sd = new Date(signalDate);
+  const today = new Date();
+  return Math.floor((today - sd) / (1000*60*60*24));
+}
+
+function renderSignalRow(sig) {
+  const ph = sig.preferred_horizon || '4M';
+  const exp = sig.forward_returns?.[ph] || {};
+  const act = sig.actuals?.[ph] || {};
+  const evl = sig.evaluation?.[ph] || {};
+  const elapsed = daysElapsed(sig.signal_date);
+
+  let actualDisplay;
+  if (evl.status === 'matured') {
+    actualDisplay = fmtPct(evl.actual_pct);
+  } else if (act.current_return_pct !== null && act.current_return_pct !== undefined) {
+    actualDisplay = `${fmtPct(act.current_return_pct)} <span class="num-mute">(MTM)</span>`;
+  } else {
+    actualDisplay = '<span class="num-mute">—</span>';
+  }
+
+  return `<tr class="signal-row" data-id="${sig.id}">
+    <td>${sig.signal_date}<div style="font-size:11px;color:#888">${elapsed}d ago</div></td>
+    <td>
+      <div style="font-weight:500">${sig.signal_name}</div>
+      <div style="font-size:11px;color:#666">${sig.source} · ${sig.asset?.name || sig.asset?.ticker}</div>
+    </td>
+    <td>${ph}</td>
+    <td>${fmtPct(exp.mean)}<div style="font-size:11px;color:#888">med ${fmtPct(exp.median, false)} · ${exp.pct_pos}%↑</div></td>
+    <td>${actualDisplay}</td>
+    <td>${gatePill(sig.credibility_score)}</td>
+    <td>${statusPill(sig.status)}</td>
+  </tr>`;
+}
+
+function renderTable(signals) {
+  if (!signals.length) {
+    return '<div class="empty-state">No signals to display.</div>';
+  }
+  return `<table>
+    <thead><tr>
+      <th>Signal Date</th><th>Signal</th><th>Horizon</th>
+      <th>Expected (mean)</th><th>Actual / MTM</th>
+      <th>Gate</th><th>Status</th>
+    </tr></thead>
+    <tbody>${signals.map(renderSignalRow).join('')}</tbody>
+  </table>`;
+}
+
+function renderSummary(signals) {
+  const active = signals.filter(s => s.status === 'active');
+  const matured = signals.filter(s => s.status === 'matured');
+  const actCount = signals.filter(s => s.credibility_score?.action === 'act').length;
+  const ignoreCount = signals.filter(s => s.credibility_score?.action === 'ignore').length;
+
+  return `
+    <div class="card"><div class="card-label">Total Signals</div>
+      <div class="card-value">${signals.length}</div>
+      <div class="card-sub">${active.length} active · ${matured.length} matured</div></div>
+    <div class="card"><div class="card-label">Action Gate</div>
+      <div class="card-value">${actCount}</div>
+      <div class="card-sub">scoring ≥7 / 10</div></div>
+    <div class="card"><div class="card-label">Below Threshold</div>
+      <div class="card-value">${ignoreCount}</div>
+      <div class="card-sub">scoring &lt;5 / 10</div></div>
+    <div class="card"><div class="card-label">Sources</div>
+      <div class="card-value">${new Set(signals.map(s => s.source)).size}</div>
+      <div class="card-sub">distinct providers</div></div>
+  `;
+}
+
+function renderDrawer(sig) {
+  const fr = sig.forward_returns || {};
+  const act = sig.actuals || {};
+  const evl = sig.evaluation || {};
+
+  const frRows = HORIZONS.map(h => {
+    const r = fr[h] || {};
+    const a = act[h] || {};
+    const e = evl[h] || {};
+    const elapsed = a.elapsed;
+    const actualVal = elapsed ? e.actual_pct : a.current_return_pct;
+    const vsMean = elapsed && e.vs_mean !== undefined ? e.vs_mean : null;
+    const cls = elapsed ? 'row-elapsed' : 'row-pending';
+    let flag = '';
+    if (e.exceeded_max_gain) flag = ' 🟢';
+    else if (e.breached_max_loss) flag = ' 🔴';
+    return `<tr class="${cls}">
+      <td>${h}${flag}</td>
+      <td>${fmtPct(r.mean)}</td>
+      <td>${fmtPct(r.median, false)}</td>
+      <td>${r.pct_pos ?? '—'}%</td>
+      <td>${fmtPct(r.max_loss, false)}</td>
+      <td>${fmtPct(r.max_gain)}</td>
+      <td>${actualVal !== null && actualVal !== undefined ? fmtPct(actualVal) : '<span class="num-mute">—</span>'}</td>
+      <td>${vsMean !== null ? fmtPct(vsMean) : '<span class="num-mute">—</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  const cs = sig.credibility_score || {};
+  const csRows = [
+    ['Sample size', cs.sample_size],
+    ['T-stat', cs.t_stat],
+    ['Tail asymmetry', cs.tail_asymmetry],
+    ['Entry-point fit', cs.entry_point],
+    ['Recent performance', cs.recent_performance],
+  ].map(([k,v]) => `<tr><td>${k}</td><td style="text-align:right">${v ?? '—'}/2</td></tr>`).join('');
+
+  const ctx = sig.context || {};
+  const ctxRows = Object.entries(ctx).map(([k,v]) =>
+    `<tr><td>${k.replace(/_/g,' ')}</td><td style="text-align:right">${v}</td></tr>`
+  ).join('');
+
+  return `
+    <button class="drawer-close" onclick="closeDrawer()">×</button>
+    <h2>${sig.signal_name}</h2>
+    <div class="source">${sig.source} · ${sig.signal_date} · ${sig.asset?.name || ''} (${sig.asset?.ticker || ''})</div>
+    <div style="margin:12px 0">${gatePill(cs)} ${statusPill(sig.status)}
+      <span style="color:#666;font-size:12px;margin-left:8px">
+        Sample N=${sig.sample_size || '—'} · Preferred horizon ${sig.preferred_horizon || '—'}
+      </span>
+    </div>
+
+    <h3>Forward Returns vs Actuals</h3>
+    <table class="fr-table">
+      <thead><tr>
+        <th>Horizon</th><th>Mean</th><th>Median</th><th>%↑</th>
+        <th>Avg Max Loss</th><th>Avg Max Gain</th>
+        <th>Actual / MTM</th><th>vs Mean</th>
+      </tr></thead>
+      <tbody>${frRows}</tbody>
+    </table>
+
+    <h3>Credibility Gate Breakdown</h3>
+    <table class="fr-table"><tbody>${csRows}
+      <tr style="font-weight:600;border-top:2px solid #ddd">
+        <td>Total</td><td style="text-align:right">${cs.total ?? '—'}/10</td>
+      </tr>
+    </tbody></table>
+
+    <h3>Context at Signal Time</h3>
+    <table class="fr-table"><tbody>${ctxRows || '<tr><td>—</td></tr>'}</tbody></table>
+
+    <h3>Notes</h3>
+    <div class="notes-md">${escapeHtml(sig.notes_markdown || '')}</div>
+  `;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function openDrawer(id) {
+  const sig = window.__SIGNALS_DATA.find(s => s.id === id);
+  if (!sig) return;
+  document.getElementById('drawer').innerHTML = renderDrawer(sig);
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
+window.closeDrawer = closeDrawer;
+
+document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-' + t.dataset.panel).classList.add('active');
+  });
+});
+
+(async function init() {
+  const signals = await loadSignals();
+  window.__SIGNALS_DATA = signals;
+
+  document.getElementById('meta-row').innerHTML =
+    `<span>${signals.length} signals tracked</span>
+     <span>Last build: ${signals[0]?.computed_at || '—'}</span>`;
+
+  document.getElementById('summary-cards').innerHTML = renderSummary(signals);
+  document.getElementById('panel-active').innerHTML =
+    renderTable(signals.filter(s => s.status === 'active'));
+  document.getElementById('panel-matured').innerHTML =
+    renderTable(signals.filter(s => s.status === 'matured'));
+  document.getElementById('panel-all').innerHTML = renderTable(signals);
+
+  document.querySelectorAll('.signal-row').forEach(r => {
+    r.addEventListener('click', () => openDrawer(r.dataset.id));
+  });
+})();
+</script>
+</body>
+</html>
