@@ -41,6 +41,7 @@ YF_MAP = {
     "VGK": "VGK",             # Vanguard FTSE Europe ETF (USD)
     "SPX": "^GSPC",           # S&P 500 Index
     "SPY": "SPY",             # SPDR S&P 500 ETF
+    "SPHB": "SPHB",           # Invesco S&P 500 High Beta ETF
     "QQQ": "QQQ",             # Invesco QQQ Trust (Nasdaq 100)
     "BTC": "BTC-USD",         # Bitcoin USD
     "ETH": "ETH-USD",         # Ethereum USD
