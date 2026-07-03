@@ -71,4 +71,6 @@ the provider-level track record. No reproduction of source exhibits.
 Log only. No position-sizing authority. Purpose is to seed a BofA US Equity &
 Quant Strategy provider track record in this tracker; evaluate at maturation
 (June 2027) against the +13.0 mean via vs_mean — no max_loss/max_gain band
-exists for this signal type.
+exists for this signal type. There is no ongoing BofA feed: this is a
+point-in-time reference from a one-off primer, with no interim updates
+expected before maturation.

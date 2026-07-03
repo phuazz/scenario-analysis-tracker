@@ -65,8 +65,9 @@ npx serve docs                # test the built artifact
 
 ### GitHub Actions
 
-The included workflow (`.github/workflows/update.yml` — to be added) runs daily
-to refresh prices and rebuild the dashboard. No action needed once configured.
+The included workflow (`.github/workflows/update.yml`) runs daily to refresh
+prices and rebuild the dashboard, and rebuilds on every push to `main`. No
+action needed.
 
 ## Credibility gate rubric
 

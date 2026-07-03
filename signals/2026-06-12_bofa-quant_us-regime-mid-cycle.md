@@ -76,8 +76,10 @@ No reproduction of source exhibits.
 
 ## Decision
 
-Log only. No position-sizing authority. Kill condition: set status to
-`killed` if BofA's published read moves to Late Cycle or Downturn before
-maturation. The productive use of this entry is the track record — does the
-Mid-Cycle factor map (High Beta over market) actually pay from a dated,
-public, ex-ante read?
+Log only. No position-sizing authority. There is no ongoing BofA feed — the
+primer was a one-off — so the natural kill condition (their read moving to
+Late Cycle or Downturn) is not observable in practice. Treat this as a
+point-in-time reference and let it run to maturation; set `killed` only if a
+later BofA regime read happens to cross the desk and contradicts it. The
+productive use of this entry is the track record — does the Mid-Cycle factor
+map (High Beta over market) actually pay from a dated, ex-ante read?
